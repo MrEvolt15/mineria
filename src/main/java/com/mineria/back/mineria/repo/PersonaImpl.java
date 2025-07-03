@@ -34,17 +34,17 @@ public class PersonaImpl implements IPersonaRepo{
 
     @Override
     public void update(Persona persona) {
-        Query query = new Query(Criteria.where("id").is(persona.getIdPersona()));
+        Query query = new Query(Criteria.where("_id").is(persona.getIdPersona()));
         Update update = new Update()
-            .set("tipo", persona.getTipo())
-            .set("genero", persona.getGenero());
+            .set("TIPO", persona.getTipo())
+            .set("GENERO", persona.getGenero());
         
         mongoTemplate.updateFirst(query, update, Persona.class);
     }
 
     @Override
     public void deleteById(String id) {
-        Query query = new Query(Criteria.where("id").is(id));
+        Query query = new Query(Criteria.where("_id").is(id));
         mongoTemplate.remove(query, Persona.class);
     }
 

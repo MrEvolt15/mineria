@@ -119,7 +119,16 @@ public class CamaraDataService {
      * Obtiene datos para mapa de calor en un rango de tiempo
      */
     public List<PersonaCamara> obtenerDatosMapaCalor(LocalDateTime inicio, LocalDateTime fin) {
-        // Implementar filtro por fecha si es necesario
+        if (inicio != null && fin != null) {
+            return personaCamaraRepo.findByFechaDeteccionBetween(inicio, fin);
+        }
+        return personaCamaraRepo.findAll();
+    }
+    
+    /**
+     * Obtiene todas las detecciones persona-cámara
+     */
+    public List<PersonaCamara> obtenerTodasLasDetecciones() {
         return personaCamaraRepo.findAll();
     }
 }

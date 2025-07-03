@@ -1,5 +1,35 @@
 # API de Minería - Documentación de Endpoints
 
+## 🎯 Visualización Web Interactiva
+
+### Acceso a la Visualización
+```
+🌐 Archivo: kmeans_visualization.html
+🚀 Script: open_visualization.bat
+📍 Menú: menu.bat → opción 5
+```
+
+**URL Local**: `file:///[ruta-al-proyecto]/kmeans_visualization.html`
+
+### Funcionalidades de la Visualización
+- **Mapa interactivo en tiempo real** con detecciones y centroides K-means
+- **Simulación automática** de datos con zonas calientes dinámicas
+- **Panel de control** para iniciar/detener, ajustar parámetros
+- **Estadísticas en vivo** de detecciones y clustering
+- **Detecciones manuales** haciendo clic en el canvas
+- **Log de actividad** con códigos de color para eventos
+
+### Endpoints Utilizados por la Visualización
+La interfaz web consume automáticamente estos endpoints:
+
+| Endpoint | Uso en Visualización |
+|----------|---------------------|
+| `POST /api/realtime/detecciones/lote` | Envío de detecciones simuladas |
+| `GET /api/realtime/heatmap-kmeans?k={k}` | Obtención de centroides |
+| `POST /api/realtime/limpiar-cache-kmeans` | Reinicio del sistema |
+
+---
+
 ## Endpoints Públicos (Accesibles desde Internet)
 
 ### 1. Recibir datos de cámaras
@@ -146,3 +176,120 @@ ngrok http 8080
 - **Requerido**: Debe estar presente en cada request
 - **Conversión automática**: Se convierte a confianza dividiendo por 100
 - **Ejemplo**: id=95 → confianza=0.95, id=50 → confianza=0.50
+
+## 🧠 Endpoints de Minería de Datos (K-means)
+
+### 📊 Mapa de Calor con Centroides K-means
+- **GET** `/api/realtime/heatmap-kmeans` - Aplica K-means en tiempo real y devuelve detecciones + centroides
+
+**Parámetros:**
+- `inicio` (opcional): Fecha inicio en formato ISO (ej: 2025-07-03T10:00:00)
+- `fin` (opcional): Fecha fin en formato ISO  
+- `k` (opcional): Número de clusters (default: 5)
+
+**Ejemplo:**
+```
+GET /api/realtime/heatmap-kmeans?k=3&inicio=2025-07-03T10:00:00&fin=2025-07-03T11:00:00
+```
+
+**Respuesta:**
+```json
+{
+  "detecciones": [],
+  "centroides": [
+    {
+      "posX": 5.2,
+      "posY": -3.1,
+      "densidad": 15,
+      "intensidad": 1.0,
+      "clusterId": 0,
+      "ultimaActualizacion": "2025-07-03T10:30:00",
+      "radio": 2.5
+    }
+  ],
+  "totalDetecciones": 45,
+  "numeroClusters": 3,
+  "fechaCalculo": "2025-07-03T10:30:00",
+  "convergencia": 0.05
+}
+```
+
+### 🎯 Centroides K-means
+- **GET** `/api/realtime/centroides` - Obtiene solo los centroides (desde cache o calculados)
+
+**Parámetros:** Mismos que heatmap-kmeans
+
+**Respuesta:**
+```json
+[
+  {
+    "posX": 5.2,
+    "posY": -3.1,
+    "densidad": 15,
+    "intensidad": 1.0,
+    "clusterId": 0,
+    "ultimaActualizacion": "2025-07-03T10:30:00",
+    "radio": 2.5
+  }
+]
+```
+
+### 🧹 Gestión de Cache
+- **POST** `/api/realtime/limpiar-cache-kmeans` - Limpia el cache de centroides
+
+## 🔄 Funcionamiento del K-means en Tiempo Real
+
+### ⚡ Actualización Incremental:
+1. **Cada nueva detección** actualiza automáticamente los centroides más cercanos
+2. **Density-based coloring**: La intensidad del color cambia según la densidad de detecciones
+3. **Cache inteligente**: Los centroides se mantienen en memoria para respuesta rápida
+4. **Learning rate**: Ajuste gradual de posiciones para estabilidad
+
+### 🎨 Visualización:
+- **posX, posY**: Coordenadas del centroide en el mapa
+- **densidad**: Número de detecciones asignadas al cluster
+- **intensidad**: Valor 0-1 para intensidad de color (densidad/10)
+- **radio**: Radio de influencia del centroide
+
+### 📈 Algoritmo:
+1. **Inicialización**: Centroides aleatorios en el rango de datos
+2. **Asignación**: Cada punto se asigna al centroide más cercano
+3. **Actualización**: Centroides se mueven al promedio de sus puntos
+4. **Convergencia**: Se detiene cuando centroides se estabilizan
+5. **Incremental**: Nuevas detecciones ajustan centroides existentes
+
+## 🌐 Integración con Frontend
+
+### JavaScript Example:
+```javascript
+// Obtener centroides en tiempo real
+async function obtenerCentroides() {
+    const response = await fetch('/api/realtime/centroides?k=5');
+    const centroides = await response.json();
+    
+    // Actualizar mapa de calor
+    centroides.forEach(centroide => {
+        actualizarMapa(
+            centroide.posX, 
+            centroide.posY, 
+            centroide.intensidad,
+            centroide.radio
+        );
+    });
+}
+
+// Llamar cada 5 segundos para tiempo real
+setInterval(obtenerCentroides, 5000);
+```
+
+### CSS para Intensidad:
+```css
+.centroide {
+    opacity: var(--intensidad); /* 0-1 del centroide */
+    background: radial-gradient(
+        circle, 
+        rgba(255,0,0,var(--intensidad)) 0%, 
+        transparent 70%
+    );
+}
+```

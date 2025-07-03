@@ -34,25 +34,25 @@ public class CamaraImpl implements ICamaraRepo {
 
     @Override
     public Camara findByNcam(Integer ncam) {
-        Query query = new Query(Criteria.where("ncam").is(ncam));
+        Query query = new Query(Criteria.where("NCAM").is(ncam));
         return mongoTemplate.findOne(query, Camara.class);
     }
 
     @Override
     public void update(Camara camara) {
-        Query query = new Query(Criteria.where("id").is(camara.getIdCamara()));
+        Query query = new Query(Criteria.where("_id").is(camara.getIdCamara()));
         Update update = new Update()
-            .set("ncam", camara.getNcam())
-            .set("time", camara.getTime())
-            .set("posX", camara.getPosX())
-            .set("posY", camara.getPosY());
+            .set("NCAM", camara.getNcam())
+            .set("TIME", camara.getTime())
+            .set("POS_X", camara.getPosX())
+            .set("POS_Y", camara.getPosY());
         
         mongoTemplate.updateFirst(query, update, Camara.class);
     }
 
     @Override
     public void deleteById(String id) {
-        Query query = new Query(Criteria.where("id").is(id));
+        Query query = new Query(Criteria.where("_id").is(id));
         mongoTemplate.remove(query, Camara.class);
     }
 }

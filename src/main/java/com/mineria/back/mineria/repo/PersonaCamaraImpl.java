@@ -34,43 +34,56 @@ public class PersonaCamaraImpl implements IPersonaCamaraRepo {
 
     @Override
     public List<PersonaCamara> findByIdPersona(String idPersona) {
-        Query query = new Query(Criteria.where("idPersona").is(idPersona));
+        Query query = new Query(Criteria.where("ID_PERSONA").is(idPersona));
         return mongoTemplate.find(query, PersonaCamara.class);
     }
 
     @Override
     public List<PersonaCamara> findByIdCamara(String idCamara) {
-        Query query = new Query(Criteria.where("idCamara").is(idCamara));
+        Query query = new Query(Criteria.where("ID_CAMARA").is(idCamara));
         return mongoTemplate.find(query, PersonaCamara.class);
     }
 
     @Override
     public void update(PersonaCamara personaCamara) {
-        Query query = new Query(Criteria.where("id").is(personaCamara.getIdPersonaCamara()));
+        Query query = new Query(Criteria.where("_id").is(personaCamara.getIdPersonaCamara()));
         Update update = new Update()
-            .set("idPersona", personaCamara.getIdPersona())
-            .set("idCamara", personaCamara.getIdCamara())
-            .set("fechaDeteccion", personaCamara.getFechaDeteccion())
-            .set("confianza", personaCamara.getConfianza());
+            .set("ID_PERSONA", personaCamara.getIdPersona())
+            .set("ID_CAMARA", personaCamara.getIdCamara())
+            .set("FECHA_DETECCION", personaCamara.getFechaDeteccion())
+            .set("CONFIANZA", personaCamara.getConfianza());
         
         mongoTemplate.updateFirst(query, update, PersonaCamara.class);
     }
 
     @Override
     public void deleteById(String id) {
-        Query query = new Query(Criteria.where("id").is(id));
+        Query query = new Query(Criteria.where("_id").is(id));
         mongoTemplate.remove(query, PersonaCamara.class);
     }
 
     @Override
     public void deleteByIdPersona(String idPersona) {
-        Query query = new Query(Criteria.where("idPersona").is(idPersona));
+        Query query = new Query(Criteria.where("ID_PERSONA").is(idPersona));
         mongoTemplate.remove(query, PersonaCamara.class);
     }
 
     @Override
     public void deleteByIdCamara(String idCamara) {
-        Query query = new Query(Criteria.where("idCamara").is(idCamara));
+        Query query = new Query(Criteria.where("ID_CAMARA").is(idCamara));
         mongoTemplate.remove(query, PersonaCamara.class);
+    }
+    
+    @Override
+    public List<PersonaCamara> findByFechaDeteccionBetween(java.time.LocalDateTime inicio, java.time.LocalDateTime fin) {
+        Query query = new Query();
+        if (inicio != null && fin != null) {
+            query.addCriteria(Criteria.where("FECHA_DETECCION").gte(inicio).lte(fin));
+        } else if (inicio != null) {
+            query.addCriteria(Criteria.where("FECHA_DETECCION").gte(inicio));
+        } else if (fin != null) {
+            query.addCriteria(Criteria.where("FECHA_DETECCION").lte(fin));
+        }
+        return mongoTemplate.find(query, PersonaCamara.class);
     }
 }

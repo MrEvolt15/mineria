@@ -14,4 +14,7 @@ public interface IPersonaCamaraRepo {
     void deleteById(String id);
     void deleteByIdPersona(String idPersona);
     void deleteByIdCamara(String idCamara);
+    
+    // Métodos para K-means con datos de posición
+    List<PersonaCamara> findByFechaDeteccionBetween(java.time.LocalDateTime inicio, java.time.LocalDateTime fin);
 }
