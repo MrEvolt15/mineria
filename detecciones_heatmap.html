@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Calor - Detección de Personas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #495057;
+            min-width: 120px;
+        }
+
+        .slider-container {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .time-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .time-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        .time-display {
+            background: #667eea;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .visualization {
+            padding: 30px;
+        }
+
+        .heatmap-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .heatmap-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .person-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #ff6b6b;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
+            animation: pulse 2s infinite;
+            z-index: 10;
+        }
+
+        .person-dot.highlight {
+            width: 16px;
+            height: 16px;
+            background: #ff3838;
+            box-shadow: 0 0 20px rgba(255, 56, 56, 0.8);
+        }
+
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .controls-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 20;
+        }
+
+        .legend h4 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .controls {
+                padding: 20px;
+            }
+
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .heatmap-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 Mapa de Calor - Detección de Personas</h1>
+            <p>Visualización en tiempo real de la actividad detectada</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="timeSlider">Línea de Tiempo:</label>
+                <div class="slider-container">
+                    <input type="range" id="timeSlider" class="time-slider" min="0" max="100" value="0" disabled>
+                </div>
+                <div id="timeDisplay" class="time-display">Cargando...</div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div id="totalPersonas" class="stat-value">-</div>
+                    <div class="stat-label">Personas Detectadas</div>
+                </div>
+                <div class="stat-card">
+                    <div id="totalDetecciones" class="stat-value">-</div>
+                    <div class="stat-label">Total Detecciones</div>
+                </div>
+                <div class="stat-card">
+                    <div id="tiempoActual" class="stat-value">-</div>
+                    <div class="stat-label">Momento Actual</div>
+                </div>
+            </div>
+
+            <div class="controls-buttons">
+                <button id="playBtn" class="btn btn-primary">▶️ Reproducir</button>
+                <button id="pauseBtn" class="btn btn-secondary">⏸️ Pausar</button>
+                <button id="resetBtn" class="btn btn-secondary">🔄 Reiniciar</button>
+                <button id="refreshBtn" class="btn btn-primary">📊 Actualizar Datos</button>
+            </div>
+        </div>
+
+        <div class="visualization">
+            <div class="heatmap-container">
+                <canvas id="heatmapCanvas" class="heatmap-canvas"></canvas>
+                <div class="legend">
+                    <h4>Leyenda</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff6b6b;"></div>
+                        <span>Persona detectada</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff3838;"></div>
+                        <span>Zona de alta actividad</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Cargando datos de detección...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+    </div>
+
+    <script>
+        class HeatmapVisualizer {
+            constructor() {
+                this.detecciones = [];
+                this.currentIndex = 0;
+                this.isPlaying = false;
+                this.playInterval = null;
+                this.canvas = document.getElementById('heatmapCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.heatmapData = [];
+                
+                this.initializeCanvas();
+                this.bindEvents();
+                this.loadData();
+            }
+
+            initializeCanvas() {
+                const container = document.querySelector('.heatmap-container');
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                
+                // Dibujar grid de fondo
+                this.drawBackground();
+            }
+
+            drawBackground() {
+                this.ctx.fillStyle = '#f8f9fa';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Grid lines
+                this.ctx.strokeStyle = '#e9ecef';
+                this.ctx.lineWidth = 1;
+                
+                const gridSize = 50;
+                for (let x = 0; x <= this.canvas.width; x += gridSize) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.canvas.height);
+                    this.ctx.stroke();
+                }
+                
+                for (let y = 0; y <= this.canvas.height; y += gridSize) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.canvas.width, y);
+                    this.ctx.stroke();
+                }
+            }
+
+            bindEvents() {
+                const timeSlider = document.getElementById('timeSlider');
+                const playBtn = document.getElementById('playBtn');
+                const pauseBtn = document.getElementById('pauseBtn');
+                const resetBtn = document.getElementById('resetBtn');
+                const refreshBtn = document.getElementById('refreshBtn');
+
+                timeSlider.addEventListener('input', (e) => {
+                    this.currentIndex = parseInt(e.target.value);
+                    this.updateVisualization();
+                });
+
+                playBtn.addEventListener('click', () => this.play());
+                pauseBtn.addEventListener('click', () => this.pause());
+                resetBtn.addEventListener('click', () => this.reset());
+                refreshBtn.addEventListener('click', () => this.loadData());
+
+                // Responsive canvas
+                window.addEventListener('resize', () => {
+                    this.initializeCanvas();
+                    this.updateVisualization();
+                });
+            }
+
+            async loadData() {
+                this.showLoading(true);
+                this.hideError();
+
+                try {
+                    const response = await fetch('http://localhost:8080/api/detecciones/todas');
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    if (!data.success) {
+                        throw new Error(data.error || 'Error en la respuesta del servidor');
+                    }
+
+                    this.detecciones = data.detecciones || [];
+                    this.setupSlider();
+                    this.generateHeatmapData();
+                    this.updateVisualization();
+                    this.updateStats();
+
+                    console.log(`✅ Cargadas ${this.detecciones.length} detecciones`);
+
+                } catch (error) {
+                    console.error('❌ Error cargando datos:', error);
+                    this.showError(`Error cargando datos: ${error.message}`);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            setupSlider() {
+                const timeSlider = document.getElementById('timeSlider');
+                timeSlider.max = Math.max(0, this.detecciones.length - 1);
+                timeSlider.value = 0;
+                timeSlider.disabled = this.detecciones.length === 0;
+                this.currentIndex = 0;
+            }
+
+            generateHeatmapData() {
+                // Generar datos de mapa de calor basados en las coordenadas
+                this.heatmapData = [];
+                const cellSize = 50;
+                const cols = Math.ceil(this.canvas.width / cellSize);
+                const rows = Math.ceil(this.canvas.height / cellSize);
+
+                // Inicializar grid
+                for (let row = 0; row < rows; row++) {
+                    this.heatmapData[row] = [];
+                    for (let col = 0; col < cols; col++) {
+                        this.heatmapData[row][col] = 0;
+                    }
+                }
+
+                // Contar personas en cada celda
+                this.detecciones.forEach(deteccion => {
+                    if (deteccion.coordenadas) {
+                        deteccion.coordenadas.forEach(coord => {
+                            const col = Math.floor((coord.x / 1000) * this.canvas.width / cellSize);
+                            const row = Math.floor((coord.y / 1000) * this.canvas.height / cellSize);
+                            
+                            if (row >= 0 && row < rows && col >= 0 && col < cols) {
+                                this.heatmapData[row][col]++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            updateVisualization() {
+                if (this.detecciones.length === 0) return;
+
+                // Limpiar canvas
+                this.drawBackground();
+
+                // Dibujar mapa de calor de fondo
+                this.drawHeatmap();
+
+                // Dibujar detección actual
+                const currentDetection = this.detecciones[this.currentIndex];
+                if (currentDetection) {
+                    this.drawCurrentDetection(currentDetection);
+                    this.updateTimeDisplay(currentDetection.timestamp);
+                }
+            }
+
+            drawHeatmap() {
+                const cellSize = 50;
+                const maxValue = Math.max(...this.heatmapData.flat());
+
+                if (maxValue === 0) return;
+
+                this.heatmapData.forEach((row, rowIndex) => {
+                    row.forEach((value, colIndex) => {
+                        if (value > 0) {
+                            const intensity = value / maxValue;
+                            const alpha = intensity * 0.3;
+                            
+                            this.ctx.fillStyle = `rgba(255, 107, 107, ${alpha})`;
+                            this.ctx.fillRect(
+                                colIndex * cellSize,
+                                rowIndex * cellSize,
+                                cellSize,
+                                cellSize
+                            );
+                        }
+                    });
+                });
+            }
+
+            drawCurrentDetection(detection) {
+                if (!detection.coordenadas || detection.coordenadas.length === 0) return;
+
+                detection.coordenadas.forEach((coord, index) => {
+                    // Convertir coordenadas a posición en canvas
+                    const x = (coord.x / 1000) * this.canvas.width;
+                    const y = (coord.y / 1000) * this.canvas.height;
+
+                    // Dibujar círculo para la persona
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = '#ff6b6b';
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = 'white';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+
+                    // Dibujar número de persona
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = 'bold 10px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText((index + 1).toString(), x, y + 3);
+
+                    // Efecto de pulsación
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 15, 0, 2 * Math.PI);
+                    this.ctx.strokeStyle = 'rgba(255, 107, 107, 0.5)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                });
+
+                // Dibujar información de la detección
+                this.drawDetectionInfo(detection);
+            }
+
+            drawDetectionInfo(detection) {
+                const info = `${detection.personas} persona${detection.personas !== 1 ? 's' : ''} detectada${detection.personas !== 1 ? 's' : ''}`;
+                
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                this.ctx.fillRect(10, 10, 250, 30);
+                
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = 'bold 14px Arial';
+                this.ctx.textAlign = 'left';
+                this.ctx.fillText(info, 20, 30);
+            }
+
+            updateTimeDisplay(timestamp) {
+                const timeDisplay = document.getElementById('timeDisplay');
+                const formattedTime = new Date(timestamp).toLocaleString('es-ES', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                timeDisplay.textContent = formattedTime;
+            }
+
+            updateStats() {
+                const totalPersonas = this.detecciones.reduce((sum, det) => sum + (det.personas || 0), 0);
+                const totalDetecciones = this.detecciones.length;
+                const currentDetection = this.detecciones[this.currentIndex];
+
+                document.getElementById('totalPersonas').textContent = totalPersonas;
+                document.getElementById('totalDetecciones').textContent = totalDetecciones;
+                document.getElementById('tiempoActual').textContent = 
+                    currentDetection ? new Date(currentDetection.timestamp).toLocaleTimeString('es-ES') : '-';
+            }
+
+            play() {
+                if (this.isPlaying || this.detecciones.length === 0) return;
+                
+                this.isPlaying = true;
+                this.playInterval = setInterval(() => {
+                    if (this.currentIndex >= this.detecciones.length - 1) {
+                        this.pause();
+                        return;
+                    }
+                    
+                    this.currentIndex++;
+                    document.getElementById('timeSlider').value = this.currentIndex;
+                    this.updateVisualization();
+                    this.updateStats();
+                }, 1000); // Avanzar cada segundo
+            }
+
+            pause() {
+                this.isPlaying = false;
+                if (this.playInterval) {
+                    clearInterval(this.playInterval);
+                    this.playInterval = null;
+                }
+            }
+
+            reset() {
+                this.pause();
+                this.currentIndex = 0;
+                document.getElementById('timeSlider').value = 0;
+                this.updateVisualization();
+                this.updateStats();
+            }
+
+            showLoading(show) {
+                document.getElementById('loading').style.display = show ? 'block' : 'none';
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            }
+
+            hideError() {
+                document.getElementById('error').style.display = 'none';
+            }
+        }
+
+        // Inicializar cuando se carga la página
+        document.addEventListener('DOMContentLoaded', () => {
+            new HeatmapVisualizer();
+        });
+    </script>
+</body>
+</html>

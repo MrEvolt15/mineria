@@ -133,6 +133,40 @@ Obtiene estadísticas básicas de las detecciones.
 }
 ```
 
+### GET `/api/detecciones/timestamps`
+Obtiene solo los timestamps de todas las detecciones ordenadas por timestamp.
+
+**Response (200):**
+```json
+{
+  "timestamps": [
+    "2025-07-03T14:18:00",
+    "2025-07-03T14:19:15", 
+    "2025-07-03T14:20:30",
+    "2025-07-03T14:21:45"
+  ],
+  "total": 4,
+  "success": true
+}
+```
+
+### GET `/api/detecciones/horas-disponibles`
+Obtiene todas las horas únicas disponibles en las detecciones.
+
+**Response (200):**
+```json
+{
+  "horas_disponibles": [
+    "2025-07-03T10:00:00",
+    "2025-07-03T11:00:00",
+    "2025-07-03T14:00:00",
+    "2025-07-03T15:00:00"
+  ],
+  "total_horas": 4,
+  "success": true
+}
+```
+
 ### GET `/api/detecciones/ejemplo`
 Obtiene un ejemplo del formato esperado para las detecciones.
 

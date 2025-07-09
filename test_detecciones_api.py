@@ -394,6 +394,48 @@ def monitorear_url_externa(intervalo_segundos=5, max_iteraciones=10):
     
     print("\n✅ Monitoreo completado")
 
+def test_horas_disponibles():
+    """Prueba obtener horas disponibles"""
+    print("🕐 Obteniendo horas disponibles...")
+    
+    try:
+        response = requests.get(f"{BASE_URL}/detecciones/horas-disponibles")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ Total de horas disponibles: {data['total_horas']}")
+            print("Primeras horas disponibles:")
+            for i, hora in enumerate(data['horas_disponibles'][:5]):
+                print(f"   {i+1}. {hora}")
+            if len(data['horas_disponibles']) > 5:
+                print(f"   ... y {len(data['horas_disponibles']) - 5} más")
+        else:
+            print(f"❌ Error: {response.status_code} - {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Error de conexión: {e}")
+
+def test_timestamps():
+    """Prueba obtener solo los timestamps"""
+    print("🕒 Obteniendo listado de timestamps...")
+    
+    try:
+        response = requests.get(f"{BASE_URL}/detecciones/timestamps")
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✅ Total de timestamps: {data['total']}")
+            print("Primeros timestamps:")
+            for i, timestamp in enumerate(data['timestamps'][:5]):
+                print(f"   {i+1}. {timestamp}")
+            if len(data['timestamps']) > 5:
+                print(f"   ... y {len(data['timestamps']) - 5} más")
+        else:
+            print(f"❌ Error: {response.status_code} - {response.text}")
+            
+    except Exception as e:
+        print(f"❌ Error de conexión: {e}")
+
 def main():
     print("🚀 Iniciando pruebas del módulo de detecciones")
     print(f"📡 URL base: {BASE_URL}")
@@ -434,6 +476,12 @@ def main():
     print_separator("ESTADÍSTICAS")
     test_estadisticas()
     
+    print_separator("HORAS DISPONIBLES")
+    test_horas_disponibles()
+    
+    print_separator("TIMESTAMPS")
+    test_timestamps()
+    
     print_separator("PRUEBAS DE ERROR")
     test_errores()
     
@@ -449,8 +497,12 @@ def main():
     print("   GET /api/detecciones/todas - Obtener todas las detecciones")
     print("   GET /api/detecciones/ultimas?limite=N - Obtener últimas N detecciones")
     print("   GET /api/detecciones/estadisticas - Obtener estadísticas")
+    print("   GET /api/detecciones/horas-disponibles - Obtener horas disponibles")
+    print("   GET /api/detecciones/timestamps - Obtener listado de timestamps")
     print("   GET /api/detecciones/ejemplo - Obtener formato de ejemplo")
     print("   DELETE /api/detecciones/limpiar - Limpiar todas las detecciones")
+    print("   GET /api/detecciones/horas-disponibles - Obtener horas disponibles")
+    print("   GET /api/detecciones/timestamps - Obtener lista de timestamps")
 
 if __name__ == "__main__":
     main()

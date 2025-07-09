@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualización K-means en Tiempo Real - Minería</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #da190b);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(45deg, #2196F3, #0b7dda);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #ff9800, #e68900);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .visualization-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            height: fit-content;
+        }
+
+        #canvas {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            width: 100%;
+            height: 500px;
+            background: #f8f9fa;
+            cursor: crosshair;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 2em;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .centroids-list {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .centroid-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .centroid-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+
+        .log-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 20px;
+        }
+
+        .log-content {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            height: 200px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-entry.success {
+            color: #4CAF50;
+        }
+
+        .log-entry.error {
+            color: #f44336;
+        }
+
+        .log-entry.info {
+            color: #2196F3;
+        }
+
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Visualización DBSCAN en Tiempo Real</h1>
+            <p>Mapa de calor basado en clustering DBSCAN de detecciones de personas</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="startSimulation()">
+                ▶️ Iniciar Visualización
+            </button>
+            <button class="btn btn-danger" onclick="stopSimulation()">
+                ⏹️ Detener
+            </button>
+            <button class="btn btn-info" onclick="loadClustering()">
+                🔄 Actualizar Clustering
+            </button>
+            <button class="btn btn-warning" onclick="loadClusteringRestringido()">
+                � Clustering por Rango
+            </button>
+        </div>
+
+        <div class="grid">
+            <div class="visualization-panel">
+                <h3>Mapa de Calor y Clusters DBSCAN</h3>
+                <canvas id="canvas" width="800" height="500"></canvas>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div>Cargando datos...</div>
+                </div>
+                <div class="tooltip" id="tooltip"></div>
+            </div>
+
+            <div class="info-panel">
+                <div class="stats">
+                    <div class="stat-card">
+                        <h3 id="detectionCount">0</h3>
+                        <p>Detecciones</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="clusterCount">0</h3>
+                        <p>Clusters</p>
+                    </div>
+                </div>
+
+                <h4>Clusters Activos</h4>
+                <div class="centroids-list" id="clustersList">
+                    <p style="text-align: center; color: #666;">No hay clusters disponibles</p>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <label for="epsValue">EPS:</label>
+                    <input type="number" id="epsValue" min="0.1" max="2.0" step="0.1" value="0.5" 
+                           style="width: 80px; padding: 5px; margin: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                    <br>
+                    <label for="minSamplesValue">Min Samples:</label>
+                    <input type="number" id="minSamplesValue" min="1" max="10" value="3" 
+                           style="width: 80px; padding: 5px; margin: 5px; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+
+                <div style="text-align: center;">
+                    <label for="fechaInicio">Fecha Inicio:</label>
+                    <input type="datetime-local" id="fechaInicio" 
+                           style="width: 100%; padding: 5px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px;">
+                    <label for="fechaFin">Fecha Fin:</label>
+                    <input type="datetime-local" id="fechaFin" 
+                           style="width: 100%; padding: 5px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px;">
+                </div>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <h3>Registro de Actividad</h3>
+            <div class="log-content" id="logContent">
+                <div class="log-entry info">[INFO] Sistema iniciado - Esperando datos...</div>
+            </div>
+        </div>
+
+        <!-- Panel de Análisis Detallado -->
+        <div class="log-panel" id="analisisPanel" style="display: none;">
+            <h3>📊 Análisis Detallado de Clustering</h3>
+            <div style="background: white; border-radius: 8px; padding: 15px;">
+                <!-- Estadísticas Generales -->
+                <div class="stats" style="margin-bottom: 20px;">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);">
+                        <h3 id="totalPuntosAnalisis">0</h3>
+                        <p>Total Puntos</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);">
+                        <h3 id="totalClustersAnalisis">0</h3>
+                        <p>Clusters Formados</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #e17055 0%, #fd79a8 100%);">
+                        <h3 id="puntosRuidoAnalisis">0</h3>
+                        <p>Puntos de Ruido</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #fdcb6e 0%, #e84393 100%);">
+                        <h3 id="normalizacionUsada">-</h3>
+                        <p>Normalización</p>
+                    </div>
+                </div>
+
+                <!-- Información de Datos Originales -->
+                <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 10px; color: #2d3436;">📈 Datos Originales</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                        <div>
+                            <strong>Rango X:</strong> <span id="rangoX">-</span>
+                        </div>
+                        <div>
+                            <strong>Rango Y:</strong> <span id="rangoY">-</span>
+                        </div>
+                        <div>
+                            <strong>Desviación X:</strong> <span id="stdX">-</span>
+                        </div>
+                        <div>
+                            <strong>Desviación Y:</strong> <span id="stdY">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parámetros DBSCAN -->
+                <div style="background: #e3f2fd; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 10px; color: #1565c0;">⚙️ Parámetros DBSCAN</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                        <div>
+                            <strong>EPS:</strong> <span id="epsUsado">-</span>
+                        </div>
+                        <div>
+                            <strong>Min Samples:</strong> <span id="minSamplesUsado">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribución de Clusters -->
+                <div style="background: #f3e5f5; border-radius: 8px; padding: 15px;">
+                    <h4 style="margin-bottom: 10px; color: #7b1fa2;">📊 Distribución de Clusters</h4>
+                    <div id="distribucionClusters" style="max-height: 150px; overflow-y: auto;">
+                        <p style="text-align: center; color: #666;">No hay datos disponibles</p>
+                    </div>
+                </div>
+
+                <!-- Recomendaciones -->
+                <div id="recomendaciones" style="background: #fff3e0; border-radius: 8px; padding: 15px; margin-top: 15px; display: none;">
+                    <h4 style="margin-bottom: 10px; color: #ef6c00;">💡 Recomendaciones</h4>
+                    <div id="recomendacionesContent" style="font-size: 14px; line-height: 1.5;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales
+        let canvas, ctx;
+        let detections = [];
+        let clusters = [];
+        let clusterCentroids = [];
+        let simulationInterval;
+        let isSimulating = false;
+        let animationFrame;
+        let lastUpdate = Date.now();
+
+        // Configuración
+        const CONFIG = {
+            API_BASE: 'http://localhost:8080/api',
+            UPDATE_INTERVAL: 3000, // ms
+            DETECTION_FADE_TIME: 15000, // ms
+            COLORS: [
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
+                '#FECA57', '#FF9FF3', '#54A0FF', '#5F27CD',
+                '#FF7675', '#74B9FF', '#00B894', '#FDCB6E'
+            ],
+            NOISE_COLOR: '#95A5A6'
+        };
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            initCanvas();
+            addLog('Sistema inicializado correctamente', 'success');
+            initDateInputs();
+            loadInitialData();
+        });
+
+        function initDateInputs() {
+            const now = new Date();
+            const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+            
+            // Formatear para datetime-local
+            const formatDateTime = (date) => {
+                return date.toISOString().slice(0, 16);
+            };
+            
+            document.getElementById('fechaInicio').value = formatDateTime(oneHourAgo);
+            document.getElementById('fechaFin').value = formatDateTime(now);
+        }
+
+        function initCanvas() {
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            
+            // Eventos del canvas
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('click', handleCanvasClick);
+            
+            // Iniciar loop de animación
+            animate();
+        }
+
+        function animate() {
+            const now = Date.now();
+            const deltaTime = now - lastUpdate;
+            
+            if (deltaTime > 50) { // Limitar a ~20 FPS
+                updateCanvas();
+                lastUpdate = now;
+            }
+            
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        function updateCanvas() {
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar grid de fondo
+            drawGrid();
+            
+            // Dibujar áreas de clusters primero
+            drawClusterAreas();
+            
+            // Dibujar detecciones con colores de cluster
+            drawDetections();
+            
+            // Dibujar centroides de clusters
+            drawClusterCentroids();
+            
+            // Dibujar conexiones entre detecciones y centroides
+            drawConnections();
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.3;
+            
+            const gridSize = 50;
+            for (let x = 0; x <= canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let y = 0; y <= canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            ctx.globalAlpha = 1;
+        }
+
+        function drawDetections() {
+            const now = Date.now();
+            
+            detections = detections.filter(detection => {
+                const age = now - detection.timestamp;
+                if (age > CONFIG.DETECTION_FADE_TIME) return false;
+                
+                const alpha = Math.max(0, 1 - (age / CONFIG.DETECTION_FADE_TIME));
+                
+                // Convertir coordenadas de detección a canvas
+                let x, y;
+                if (detection.coordenadas && detection.coordenadas.length > 0) {
+                    // Usar primera coordenada como representativa
+                    const coord = detection.coordenadas[0];
+                    x = Math.max(0, Math.min(canvas.width, (coord.x / 1000) * canvas.width));
+                    y = Math.max(0, Math.min(canvas.height, (coord.y / 1000) * canvas.height));
+                } else {
+                    // Fallback a coordenadas normalizadas
+                    x = (detection.x / 100) * canvas.width;
+                    y = (detection.y / 100) * canvas.height;
+                }
+                
+                // Determinar color basado en cluster
+                let color = CONFIG.NOISE_COLOR;
+                if (detection.clusterId !== null && detection.clusterId >= 0) {
+                    color = CONFIG.COLORS[detection.clusterId % CONFIG.COLORS.length];
+                } else if (detection.clusterTipo === 'RUIDO') {
+                    color = CONFIG.NOISE_COLOR;
+                }
+                
+                // Dibujar círculo de detección
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, detection.clusterTipo === 'RUIDO' ? 6 : 8, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Dibujar anillo exterior
+                ctx.strokeStyle = color;
+                ctx.lineWidth = detection.clusterTipo === 'RUIDO' ? 1 : 2;
+                ctx.beginPath();
+                ctx.arc(x, y, detection.clusterTipo === 'RUIDO' ? 8 : 12, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                // Dibujar etiqueta de cluster si no es ruido
+                if (detection.clusterTipo !== 'RUIDO' && alpha > 0.5) {
+                    ctx.fillStyle = '#333';
+                    ctx.font = 'bold 10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`C${detection.clusterId}`, x, y - 15);
+                }
+                
+                ctx.globalAlpha = 1;
+                return true;
+            });
+        }
+
+        function drawClusterAreas() {
+            clusterCentroids.forEach(centroid => {
+                if (centroid.clusterId >= 0) {
+                    const color = CONFIG.COLORS[centroid.clusterId % CONFIG.COLORS.length];
+                    const x = (centroid.x / 1000) * canvas.width;
+                    const y = (centroid.y / 1000) * canvas.height;
+                    
+                    // Dibujar área de influencia del cluster
+                    ctx.globalAlpha = 0.1;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    const radius = Math.max(30, Math.min(80, centroid.puntosEnCluster * 5));
+                    ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+            });
+        }
+
+        function drawClusterCentroids() {
+            clusterCentroids.forEach(centroid => {
+                if (centroid.clusterId >= 0) {
+                    const color = CONFIG.COLORS[centroid.clusterId % CONFIG.COLORS.length];
+                    const x = (centroid.x / 1000) * canvas.width;
+                    const y = (centroid.y / 1000) * canvas.height;
+                    
+                    // Dibujar centroide principal
+                    ctx.fillStyle = color;
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 15, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // Dibujar etiqueta
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`C${centroid.clusterId}`, x, y + 4);
+                    
+                    // Dibujar información adicional
+                    ctx.fillStyle = '#333';
+                    ctx.font = '10px Arial';
+                    ctx.fillText(`(${centroid.x.toFixed(0)}, ${centroid.y.toFixed(0)})`, x, y + 25);
+                    ctx.fillText(`${centroid.puntosEnCluster} pts`, x, y + 37);
+                }
+            });
+        }
+
+        function drawConnections() {
+            // Dibujar líneas entre detecciones recientes y sus centroides de cluster
+            const now = Date.now();
+            const recentDetections = detections.filter(d => (now - d.timestamp) < 5000);
+            
+            recentDetections.forEach(detection => {
+                if (detection.clusterId >= 0 && detection.centroideCluster) {
+                    let dx, dy;
+                    if (detection.coordenadas && detection.coordenadas.length > 0) {
+                        const coord = detection.coordenadas[0];
+                        dx = (coord.x / 1000) * canvas.width;
+                        dy = (coord.y / 1000) * canvas.height;
+                    } else {
+                        dx = (detection.x / 100) * canvas.width;
+                        dy = (detection.y / 100) * canvas.height;
+                    }
+                    
+                    const cx = (detection.centroideCluster.x / 1000) * canvas.width;
+                    const cy = (detection.centroideCluster.y / 1000) * canvas.height;
+                    
+                    const age = now - detection.timestamp;
+                    const alpha = Math.max(0, 1 - (age / 5000));
+                    
+                    ctx.globalAlpha = alpha * 0.4;
+                    ctx.strokeStyle = CONFIG.COLORS[detection.clusterId % CONFIG.COLORS.length];
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.moveTo(dx, dy);
+                    ctx.lineTo(cx, cy);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.globalAlpha = 1;
+                }
+            });
+        }
+
+        // Funciones de API
+        async function startSimulation() {
+            if (isSimulating) return;
+            
+            isSimulating = true;
+            document.querySelector('.btn-primary').disabled = true;
+            document.querySelector('.btn-danger').disabled = false;
+            
+            addLog('Iniciando visualización DBSCAN...', 'info');
+            
+            try {
+                // Cargar clustering inicial
+                await loadClustering();
+                
+                // Iniciar actualizaciones periódicas
+                simulationInterval = setInterval(async () => {
+                    await loadClustering();
+                }, CONFIG.UPDATE_INTERVAL);
+                
+                addLog('Visualización iniciada correctamente', 'success');
+            } catch (error) {
+                addLog(`Error al iniciar visualización: ${error.message}`, 'error');
+                stopSimulation();
+            }
+        }
+
+        function stopSimulation() {
+            isSimulating = false;
+            document.querySelector('.btn-primary').disabled = false;
+            document.querySelector('.btn-danger').disabled = true;
+            
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                simulationInterval = null;
+            }
+            
+            addLog('Visualización detenida', 'info');
+        }
+
+        async function loadClustering() {
+            showLoading(true);
+            
+            try {
+                const eps = document.getElementById('epsValue').value;
+                const minSamples = document.getElementById('minSamplesValue').value;
+                
+                addLog(`Aplicando clustering DBSCAN (eps=${eps}, minSamples=${minSamples})...`, 'info');
+                
+                const response = await fetch(`${CONFIG.API_BASE}/detecciones/clustering?eps=${eps}&minSamples=${minSamples}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Procesar detecciones con información de clustering
+                    processClusteringData(data);
+                    addLog(`Clustering completado: ${data.estadisticas.totalClusters} clusters, ${data.estadisticas.puntosRuido} puntos de ruido`, 'success');
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+                
+            } catch (error) {
+                addLog(`Error al cargar clustering: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadClusteringRestringido() {
+            showLoading(true);
+            
+            try {
+                const eps = document.getElementById('epsValue').value;
+                const minSamples = document.getElementById('minSamplesValue').value;
+                const fechaInicio = document.getElementById('fechaInicio').value;
+                const fechaFin = document.getElementById('fechaFin').value;
+                
+                if (!fechaInicio || !fechaFin) {
+                    throw new Error('Debe especificar fechas de inicio y fin');
+                }
+                
+                // Convertir fechas al formato esperado por la API
+                const formatoApi = (fecha) => fecha.replace('T', 'T') + ':00';
+                const inicio = formatoApi(fechaInicio);
+                const fin = formatoApi(fechaFin);
+                
+                addLog(`Aplicando clustering restringido (${inicio} - ${fin})...`, 'info');
+                
+                const response = await fetch(`${CONFIG.API_BASE}/detecciones/clustering/restringido?eps=${eps}&minSamples=${minSamples}&inicio=${encodeURIComponent(inicio)}&fin=${encodeURIComponent(fin)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    processClusteringData(data);
+                    addLog(`Clustering restringido completado: ${data.estadisticas.totalClusters} clusters en el período especificado`, 'success');
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+                
+            } catch (error) {
+                addLog(`Error en clustering restringido: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadAnalisisDetallado() {
+            try {
+                const eps = document.getElementById('epsValue').value;
+                const minSamples = document.getElementById('minSamplesValue').value;
+                
+                addLog(`Obteniendo análisis detallado de clustering (eps=${eps}, minSamples=${minSamples})...`, 'info');
+                
+                const response = await fetch(`${CONFIG.API_BASE}/detecciones/clustering/analisis?eps=${eps}&minSamples=${minSamples}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success || !data.error) {
+                    // Mostrar el panel de análisis
+                    document.getElementById('analisisPanel').style.display = 'block';
+                    
+                    // Procesar y mostrar la información de diagnóstico
+                    processAnalisisDetallado(data);
+                    addLog('Análisis detallado cargado correctamente', 'success');
+                } else {
+                    throw new Error(data.mensaje || data.error || 'Error desconocido');
+                }
+                
+            } catch (error) {
+                addLog(`Error al cargar análisis detallado: ${error.message}`, 'error');
+                document.getElementById('analisisPanel').style.display = 'none';
+            }
+        }
+
+        function processAnalisisDetallado(data) {
+            // Actualizar estadísticas principales
+            document.getElementById('totalPuntosAnalisis').textContent = data.estadisticas?.totalPuntos || 0;
+            document.getElementById('totalClustersAnalisis').textContent = data.estadisticas?.totalClusters || 0;
+            document.getElementById('puntosRuidoAnalisis').textContent = data.estadisticas?.puntosRuido || 0;
+            
+            // Información de diagnóstico
+            const diagnostico = data.diagnostico || {};
+            const datosOriginales = diagnostico.datosOriginales || {};
+            const parametrosDBSCAN = diagnostico.parametrosDBSCAN || {};
+            
+            // Normalización
+            document.getElementById('normalizacionUsada').textContent = 
+                diagnostico.normalizacionUsada ? 'SÍ' : 'NO';
+            
+            // Datos originales
+            const rangoX = datosOriginales.rango_x || [0, 0];
+            const rangoY = datosOriginales.rango_y || [0, 0];
+            document.getElementById('rangoX').textContent = 
+                `${rangoX[0].toFixed(1)} - ${rangoX[1].toFixed(1)}`;
+            document.getElementById('rangoY').textContent = 
+                `${rangoY[0].toFixed(1)} - ${rangoY[1].toFixed(1)}`;
+            document.getElementById('stdX').textContent = 
+                (datosOriginales.std_x || 0).toFixed(2);
+            document.getElementById('stdY').textContent = 
+                (datosOriginales.std_y || 0).toFixed(2);
+            
+            // Parámetros DBSCAN
+            document.getElementById('epsUsado').textContent = 
+                (parametrosDBSCAN.eps || 0).toFixed(3);
+            document.getElementById('minSamplesUsado').textContent = 
+                parametrosDBSCAN.min_samples || 0;
+            
+            // Distribución de clusters
+            const distribucionClusters = diagnostico.distribucionClusters || [];
+            const container = document.getElementById('distribucionClusters');
+            
+            if (distribucionClusters.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No hay datos de distribución disponibles</p>';
+            } else {
+                container.innerHTML = distribucionClusters.map(cluster => {
+                    const clusterName = cluster.clusterId === -1 ? 'Ruido' : `Cluster ${cluster.clusterId}`;
+                    const color = cluster.clusterId === -1 ? '#e74c3c' : 
+                        CONFIG.COLORS[cluster.clusterId % CONFIG.COLORS.length];
+                    
+                    return `
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px; margin-bottom: 5px; background: white; border-radius: 5px; border-left: 4px solid ${color};">
+                            <span><strong>${clusterName}</strong></span>
+                            <span>${cluster.count} puntos</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Generar recomendaciones
+            generarRecomendaciones(data);
+        }
+
+        function generarRecomendaciones(data) {
+            const diagnostico = data.diagnostico || {};
+            const estadisticas = data.estadisticas || {};
+            const datosOriginales = diagnostico.datosOriginales || {};
+            const distribucionClusters = diagnostico.distribucionClusters || [];
+            
+            const recomendaciones = [];
+            
+            // Análisis del número de clusters
+            const totalClusters = estadisticas.totalClusters || 0;
+            const totalPuntos = estadisticas.totalPuntos || 0;
+            const puntosRuido = estadisticas.puntosRuido || 0;
+            
+            if (totalClusters === 1 && totalPuntos > 10) {
+                recomendaciones.push('🔄 <strong>Solo 1 cluster detectado:</strong> Intenta reducir el valor de EPS para obtener más clusters separados.');
+            }
+            
+            if (totalClusters === 0) {
+                recomendaciones.push('❌ <strong>No se formaron clusters:</strong> Reduce el valor de Min Samples o aumenta EPS.');
+            }
+            
+            if (puntosRuido > totalPuntos * 0.5) {
+                recomendaciones.push('⚠️ <strong>Demasiado ruido:</strong> Reduce Min Samples o aumenta EPS para incluir más puntos en clusters.');
+            }
+            
+            // Análisis de normalización
+            if (!diagnostico.normalizacionUsada && (datosOriginales.std_x > 100 || datosOriginales.std_y > 100)) {
+                recomendaciones.push('📏 <strong>Considera normalización:</strong> Tus datos tienen escalas grandes, la normalización podría mejorar los resultados.');
+            }
+            
+            // Análisis de parámetros
+            const eps = diagnostico.parametrosDBSCAN?.eps || 0;
+            if (eps > 1.0 && !diagnostico.normalizacionUsada) {
+                recomendaciones.push('🎯 <strong>EPS muy grande:</strong> Con tus coordenadas sin normalizar, prueba valores de EPS entre 10-50.');
+            }
+            
+            if (eps < 0.1 && diagnostico.normalizacionUsada) {
+                recomendaciones.push('🎯 <strong>EPS muy pequeño:</strong> Con datos normalizados, prueba valores de EPS entre 0.1-0.5.');
+            }
+            
+            // Mostrar recomendaciones
+            const recomendacionesContainer = document.getElementById('recomendaciones');
+            const recomendacionesContent = document.getElementById('recomendacionesContent');
+            
+            if (recomendaciones.length > 0) {
+                recomendacionesContent.innerHTML = recomendaciones.map(rec => 
+                    `<div style="margin-bottom: 10px; padding: 8px; background: #fff; border-radius: 4px; border-left: 3px solid #ff9800;">${rec}</div>`
+                ).join('');
+                recomendacionesContainer.style.display = 'block';
+            } else {
+                recomendacionesContainer.style.display = 'none';
+            }
+        }
+
+        function processClusteringData(data) {
+            // Limpiar datos anteriores
+            detections = [];
+            clusters = [];
+            clusterCentroids = [];
+            
+            // Procesar detecciones con información de clustering
+            data.detecciones.forEach(deteccion => {
+                const detection = {
+                    id: deteccion.id,
+                    timestamp: Date.now() - Math.random() * 5000, // Simular timestamp reciente
+                    clusterId: deteccion.clusterId,
+                    clusterTipo: deteccion.clusterTipo,
+                    coordenadas: deteccion.coordenadas,
+                    puntosEnCluster: deteccion.puntosEnCluster,
+                    densidadCluster: deteccion.densidadCluster,
+                    centroideCluster: deteccion.centroideCluster
+                };
+                
+                // Si no hay coordenadas reales, generar posición basada en centroide
+                if (!detection.coordenadas || detection.coordenadas.length === 0) {
+                    if (detection.centroideCluster) {
+                        detection.x = Math.max(0, Math.min(100, (detection.centroideCluster.x / 10) + Math.random() * 20 - 10));
+                        detection.y = Math.max(0, Math.min(100, (detection.centroideCluster.y / 10) + Math.random() * 20 - 10));
+                    } else {
+                        detection.x = Math.random() * 100;
+                        detection.y = Math.random() * 100;
+                    }
+                }
+                
+                detections.push(detection);
+            });
+            
+            // Extraer centroides únicos
+            const centroidesMap = new Map();
+            data.detecciones.forEach(deteccion => {
+                if (deteccion.clusterId >= 0 && deteccion.centroideCluster) {
+                    const key = `${deteccion.clusterId}`;
+                    if (!centroidesMap.has(key)) {
+                        centroidesMap.set(key, {
+                            clusterId: deteccion.clusterId,
+                            x: deteccion.centroideCluster.x,
+                            y: deteccion.centroideCluster.y,
+                            puntosEnCluster: deteccion.puntosEnCluster,
+                            densidad: deteccion.densidadCluster
+                        });
+                    }
+                }
+            });
+            
+            clusterCentroids = Array.from(centroidesMap.values());
+            
+            // Actualizar UI
+            updateDetectionCount();
+            updateClusterCount();
+            updateClustersList();
+        }
+
+        // Funciones de UI
+        function updateDetectionCount() {
+            const count = detections.filter(d => (Date.now() - d.timestamp) < CONFIG.DETECTION_FADE_TIME).length;
+            document.getElementById('detectionCount').textContent = count;
+        }
+
+        function updateClusterCount() {
+            document.getElementById('clusterCount').textContent = clusterCentroids.length;
+        }
+
+        function updateClustersList() {
+            const container = document.getElementById('clustersList');
+            
+            if (clusterCentroids.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No hay clusters disponibles</p>';
+                return;
+            }
+            
+            container.innerHTML = clusterCentroids.map((cluster, index) => {
+                const color = CONFIG.COLORS[cluster.clusterId % CONFIG.COLORS.length];
+                return `
+                    <div class="centroid-item">
+                        <div class="centroid-color" style="background-color: ${color}"></div>
+                        <div>
+                            <strong>Cluster ${cluster.clusterId}</strong><br>
+                            <small>(${cluster.x.toFixed(0)}, ${cluster.y.toFixed(0)})</small>
+                            <br><small>${cluster.puntosEnCluster} puntos</small>
+                            <br><small>Densidad: ${cluster.densidad.toFixed(2)}</small>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadInitialData() {
+            try {
+                await loadClustering();
+            } catch (error) {
+                addLog('No se pudieron cargar datos iniciales - servidor no disponible', 'error');
+            }
+        }
+
+        function addLog(message, type = 'info') {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            logContent.appendChild(entry);
+            logContent.scrollTop = logContent.scrollHeight;
+            
+            // Limitar a últimas 100 entradas
+            while (logContent.children.length > 100) {
+                logContent.removeChild(logContent.firstChild);
+            }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // Eventos del canvas
+        function handleMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // Buscar cluster cercano
+            const tooltip = document.getElementById('tooltip');
+            let found = false;
+            
+            clusterCentroids.forEach((cluster) => {
+                const cx = (cluster.x / 1000) * canvas.width;
+                const cy = (cluster.y / 1000) * canvas.height;
+                const distance = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+                
+                if (distance <= 20) {
+                    const color = CONFIG.COLORS[cluster.clusterId % CONFIG.COLORS.length];
+                    tooltip.innerHTML = `
+                        <strong>Cluster ${cluster.clusterId}</strong><br>
+                        Posición: (${cluster.x.toFixed(0)}, ${cluster.y.toFixed(0)})<br>
+                        Puntos: ${cluster.puntosEnCluster}<br>
+                        Densidad: ${cluster.densidad.toFixed(3)}
+                    `;
+                    tooltip.style.left = (event.clientX + 10) + 'px';
+                    tooltip.style.top = (event.clientY - 10) + 'px';
+                    tooltip.style.display = 'block';
+                    found = true;
+                }
+            });
+            
+            // Buscar detección cercana
+            if (!found) {
+                detections.forEach((detection) => {
+                    let dx, dy;
+                    if (detection.coordenadas && detection.coordenadas.length > 0) {
+                        const coord = detection.coordenadas[0];
+                        dx = (coord.x / 1000) * canvas.width;
+                        dy = (coord.y / 1000) * canvas.height;
+                    } else {
+                        dx = (detection.x / 100) * canvas.width;
+                        dy = (detection.y / 100) * canvas.height;
+                    }
+                    
+                    const distance = Math.sqrt((x - dx) ** 2 + (y - dy) ** 2);
+                    
+                    if (distance <= 15) {
+                        tooltip.innerHTML = `
+                            <strong>Detección ${detection.id || 'N/A'}</strong><br>
+                            Cluster: ${detection.clusterId >= 0 ? detection.clusterId : 'Ruido'}<br>
+                            Tipo: ${detection.clusterTipo}<br>
+                            ${detection.puntosEnCluster ? `Puntos en cluster: ${detection.puntosEnCluster}` : ''}
+                        `;
+                        tooltip.style.left = (event.clientX + 10) + 'px';
+                        tooltip.style.top = (event.clientY - 10) + 'px';
+                        tooltip.style.display = 'block';
+                        found = true;
+                    }
+                });
+            }
+            
+            if (!found) {
+                tooltip.style.display = 'none';
+            }
+        }
+
+        function handleCanvasClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / canvas.width) * 1000;
+            const y = ((event.clientY - rect.top) / canvas.height) * 1000;
+            
+            addLog(`Posición clickeada: (${x.toFixed(0)}, ${y.toFixed(0)})`, 'info');
+        }
+
+        // Cleanup al cerrar la página
+        window.addEventListener('beforeunload', function() {
+            stopSimulation();
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
+        });
+    </script>
+</body>
+</html>
